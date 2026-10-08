@@ -4,14 +4,22 @@
 (function () {
   const XH = (window.XH = window.XH || {});
 
+  // fps: capture rate ('display' = the monitor's refresh rate, so 144/240 Hz screens get 144/240 fps);
   // capture: fraction of display resolution captured; px: canvas resolution (number or 'dpr')
   const QUALITY = {
     ultraPerformance: { fps: 30, capture: 0.5, px: 0.5 },
-    performance: { fps: 45, capture: 0.75, px: 0.75 },
-    balanced: { fps: 60, capture: 1, px: 1 },
-    quality: { fps: 60, capture: 1, px: 'dpr' },
-    ultra: { fps: 120, capture: 1, px: 'dpr' },
+    performance: { fps: 60, capture: 0.75, px: 0.75 },
+    balanced: { fps: 'display', capture: 1, px: 1 },
+    quality: { fps: 'display', capture: 1, px: 'dpr' },
+    ultra: { fps: 'fast', capture: 1, px: 'dpr' },
   };
+  // 'fast' = at least 144 fps even on a 60 Hz screen, which helps most with VSync off.
+  function captureFps(q, display) {
+    const hz = Math.round((display && display.hz) || 60);
+    if (q.fps === 'display') return Math.max(60, hz);
+    if (q.fps === 'fast') return Math.max(144, hz);
+    return q.fps;
+  }
 
   const VS = 'attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }';
   const FS = `
@@ -153,7 +161,8 @@ void main() {
     async _ensureStream(cfg, display) {
       const want = cfg.enabled && (cfg.keepWarm || this.state.active);
       const q = QUALITY[cfg.quality] || QUALITY.balanced;
-      const key = [display.width, display.height, cfg.quality].join('|');
+      const fps = captureFps(q, display);
+      const key = [display.width, display.height, cfg.quality, fps].join('|');
       if (!want) { this._stopStream(); return; }
       if (this.stream && this.streamKey === key) return;
       if (this.starting) return this.starting;
@@ -165,7 +174,7 @@ void main() {
         .getDisplayMedia({
           audio: false,
           video: {
-            frameRate: { ideal: q.fps, max: q.fps },
+            frameRate: { ideal: fps, max: fps },
             width: { max: Math.round(display.width * dpr * q.capture) },
             height: { max: Math.round(display.height * dpr * q.capture) },
           },
@@ -173,8 +182,12 @@ void main() {
         .then(async (stream) => {
           this.stream = stream;
           this.streamKey = key;
+          const track = stream.getVideoTracks()[0];
+          // Ask the capturer to favour frame rate over sharpness: this is a live view.
+          try { track.contentHint = 'motion'; } catch {}
           this.video.srcObject = stream;
           await this.video.play();
+          this._watchFrames(stream);
           this.failedKey = null;
           this.onError(null);
           stream.getVideoTracks()[0].addEventListener('ended', () => { if (this.stream === stream) this._stopStream(); });
@@ -190,6 +203,19 @@ void main() {
         })
         .finally(() => { this.starting = null; this._kick(); });
       return this.starting;
+    }
+
+    // Draw as soon as each captured frame arrives (lowest latency), and only upload frames that are new.
+    _watchFrames(stream) {
+      const v = this.video;
+      if (!v.requestVideoFrameCallback) return;
+      const onFrame = () => {
+        if (this.stream !== stream) return;
+        this.newFrame = true;
+        if (this.open > 0) this._frame();
+        v.requestVideoFrameCallback(onFrame);
+      };
+      v.requestVideoFrameCallback(onFrame);
     }
 
     _stopStream() {
@@ -212,35 +238,29 @@ void main() {
     }
     setCursor(c) { this.cursor = c; this._kick(); }
 
+    // requestAnimationFrame loop for open/zoom animations, cursor moves and setting changes.
+    // It stops once nothing is changing; new captured frames are drawn by _watchFrames.
     _kick() {
+      this.dirty = true;
       if (this.loop) return;
-      this.last = performance.now();
       const step = () => {
         this.loop = 0;
-        if (this._frame()) this._schedule(step);
+        const animating = this._frame();
+        if (animating || this.dirty) this.loop = requestAnimationFrame(step);
       };
-      this._schedule(step);
-    }
-    _schedule(fn) {
-      const cfg = this.state && this.state.cfg;
-      // VSync off: draw as soon as each captured frame arrives instead of waiting for the display refresh.
-      if (cfg && !cfg.vsync && this.stream && this.video.requestVideoFrameCallback && this.open > 0.999) {
-        this.loop = -1;
-        this.video.requestVideoFrameCallback(() => fn());
-      } else {
-        this.loop = requestAnimationFrame(fn);
-      }
+      this.loop = requestAnimationFrame(step);
     }
 
-    // Returns true while there is something to draw.
+    // Draws one frame. Returns true while an animation is still running.
     _frame() {
       const s = this.state;
       const gl = this.gl;
       if (!s || !gl) return false;
       const cfg = s.cfg;
       const now = performance.now();
-      const dt = Math.min(100, now - this.last);
+      const dt = Math.min(100, now - (this.last || now));
       this.last = now;
+      this.dirty = false;
 
       const targetOpen = s.active && cfg.enabled ? 1 : 0;
       const tau = Math.max(1, (cfg.animMs || 1) / 3);
@@ -249,25 +269,8 @@ void main() {
       this.zoomShown += (s.zoom - this.zoomShown) * k;
       if (Math.abs(targetOpen - this.open) < 0.002) this.open = targetOpen;
       if (Math.abs(s.zoom - this.zoomShown) < 0.002) this.zoomShown = s.zoom;
+      const animating = this.open !== targetOpen || this.zoomShown !== s.zoom;
       this.onActiveChange(this.open > 0);
-
-      // resize canvas
-      const q = QUALITY[cfg.quality] || QUALITY.balanced;
-      const dpr = window.devicePixelRatio || 1;
-      const scale = q.px === 'dpr' ? dpr : Math.min(dpr, q.px * dpr);
-      const W = Math.round(window.innerWidth * scale), H = Math.round(window.innerHeight * scale);
-      if (this.canvas.width !== W || this.canvas.height !== H) { this.canvas.width = W; this.canvas.height = H; }
-      gl.viewport(0, 0, W, H);
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      if (this.open <= 0) return false;
-
-      const v = this.video;
-      if (this.stream && v.readyState >= 2 && v.videoWidth) {
-        gl.bindTexture(gl.TEXTURE_2D, this.tex);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, v);
-        this.hasFrame = true;
-      }
 
       const d = s.display, w = s.window;
       let cx, cy;
@@ -280,11 +283,50 @@ void main() {
         case 'custom': hw = cfg.width / 2; hh = cfg.height / 2; rad = cfg.roundness; break;
         default: hw = hh = cfg.size / 2; rad = cfg.size / 2;
       }
+
+      // Size the canvas to just the lens (plus its ring) unless the background is dimmed, so the
+      // GPU shades and composites a small square instead of the whole screen every frame.
+      const q = QUALITY[cfg.quality] || QUALITY.balanced;
+      const dpr = window.devicePixelRatio || 1;
+      const scale = q.px === 'dpr' ? dpr : Math.min(dpr, q.px * dpr);
+      const winOffX = w.x - d.x, winOffY = w.y - d.y;
+      let left = 0, top = 0, cssW = window.innerWidth, cssH = window.innerHeight;
+      if (!(cfg.dim.enabled && cfg.dim.opacity > 0)) {
+        const o = cfg.outline;
+        const m = Math.ceil((o.enabled ? o.thickness + (o.feather || 0) : 0) + (cfg.edgeFeather || 0) + 3);
+        left = Math.floor(cx - hw - m - winOffX);
+        top = Math.floor(cy - hh - m - winOffY);
+        cssW = Math.ceil(hw * 2 + m * 2);
+        cssH = Math.ceil(hh * 2 + m * 2);
+      }
+      const cs = this.canvas.style;
+      const box = left + ',' + top + ',' + cssW + ',' + cssH;
+      if (this.box !== box) {
+        cs.left = left + 'px'; cs.top = top + 'px'; cs.width = cssW + 'px'; cs.height = cssH + 'px';
+        this.box = box;
+      }
+      const W = Math.round(cssW * scale), H = Math.round(cssH * scale);
+      if (this.canvas.width !== W || this.canvas.height !== H) { this.canvas.width = W; this.canvas.height = H; }
+      gl.viewport(0, 0, W, H);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      if (this.open <= 0) return false;
+
+      const v = this.video;
+      // Upload only frames we haven't seen (every rAF re-uploading the same frame wastes GPU time).
+      const fresh = this.newFrame || !v.requestVideoFrameCallback || !this.hasFrame;
+      if (this.stream && v.readyState >= 2 && v.videoWidth && fresh) {
+        gl.bindTexture(gl.TEXTURE_2D, this.tex);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, v);
+        this.hasFrame = true;
+        this.newFrame = false;
+      }
+
       const U = this.u;
       gl.uniform1i(U.uTex, 0);
       gl.uniform2f(U.uCanvas, W, H);
-      gl.uniform1f(U.uScale, scale);
-      gl.uniform2f(U.uWinOff, w.x - d.x, w.y - d.y);
+      gl.uniform1f(U.uScale, W / cssW);
+      gl.uniform2f(U.uWinOff, winOffX + left, winOffY + top);
       gl.uniform2f(U.uDisp, d.width, d.height);
       gl.uniform2f(U.uTexel, 1 / (v.videoWidth || d.width), 1 / (v.videoHeight || d.height));
       gl.uniform2f(U.uCenter, cx, cy);
@@ -303,7 +345,7 @@ void main() {
       gl.uniform4f(U.uDim, ...hexRgb(cfg.dim.color), cfg.dim.enabled ? cfg.dim.opacity : 0);
       gl.uniform1f(U.uHasFrame, this.hasFrame ? 1 : 0);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      return true; // keep drawing while open: the captured image is live
+      return animating || (s.follow && this.open > 0);
     }
 
     lensCenter() {

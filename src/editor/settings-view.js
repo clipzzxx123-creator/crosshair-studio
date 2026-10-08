@@ -104,13 +104,15 @@
         if (b) s.crosshairBinds[ch.id] = { bind: b, mode: (cb && cb.mode) || 'switch' };
         else delete s.crosshairBinds[ch.id];
       });
+      const isWheel = !!(cb && cb.bind && cb.bind.kind === 'wheel');
       const mode = h('select', {
-        disabled: !cb,
+        disabled: !cb || isWheel,
         title: 'Switch: changes your crosshair until you switch again. Hold: uses it only while the bind is held.',
         onchange: (e) => { if (s.crosshairBinds[ch.id]) { s.crosshairBinds[ch.id].mode = e.target.value; commit(); } },
       },
         h('option', { value: 'switch', selected: !cb || cb.mode !== 'hold' }, 'Switch to it'),
-        h('option', { value: 'hold', selected: cb && cb.mode === 'hold' }, 'Use while held'));
+        h('option', { value: 'hold', selected: cb && cb.mode === 'hold' && !isWheel }, 'Use while held'));
+      if (isWheel) mode.title = 'A scroll can’t be held, so scroll binds always switch.';
       return h('div', {},
         h('div', { class: 'set-row xh-row' },
           thumb(ch, 36, 56),
@@ -146,10 +148,10 @@
         h('h2', {}, 'Settings'),
         updateCard(ctx),
         card(h, 'Crosshair hotkeys',
-          h('p', { class: 'note' }, 'Bind any key, key combo, or right / middle / side mouse button. Click a bind, then press it. Esc cancels, Backspace clears.'),
+          h('p', { class: 'note' }, 'Bind any key, key combo, right / middle / side mouse button, or scroll up / down (Shift + scroll works too). Click a bind, then press or scroll. Esc cancels, Backspace clears.'),
           ...appRows),
         card(h, 'Switch crosshairs',
-          h('p', { class: 'note' }, '"Switch to it" changes your crosshair until you switch again. "Use while held" swaps to it only while the bind is held, for example a sniper crosshair on right click.'),
+          h('p', { class: 'note' }, '"Switch to it" changes your crosshair until you switch again. "Use while held" swaps to it only while the bind is held, for example a sniper crosshair on right click. Scroll binds always switch. Tip: bind Next / Previous crosshair to scroll up / down to flick through them.'),
           d.crosshairs.length > 1 ? null : h('p', { class: 'note warn' }, 'You have one crosshair. Add more from the Library or with + New to switch between them.'),
           ...xhRows),
         card(h, 'Scope binds',

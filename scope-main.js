@@ -97,14 +97,34 @@ module.exports = function createScope({ getOverlay, activeProfile, targetDisplay
   }
 
   // ---------- bind events ----------
+  // A wheel flick sends many ticks. Zoom in/out react to every tick; on/off style actions take
+  // at most one tick per WHEEL_GAP_MS so the lens doesn't flicker.
+  const WHEEL_GAP_MS = 150;
+  const STEPPED = new Set(['zoomIn', 'zoomOut']);
+  const lastWheel = { up: 0, down: 0 };
+
   function onBindDown(ev) {
     const c = cfg();
     if (!c || !c.enabled) return;
     const b = c.binds || {};
-    if (matches(b.hold, ev)) { holdStart(); return; }
+    const wheel = ev.kind === 'wheel';
+    const now = Date.now();
+    const throttled = wheel && now - lastWheel[ev.dir] < WHEEL_GAP_MS;
+    if (matches(b.hold, ev)) {
+      // A scroll can't be held, so a scroll bound to "hold" toggles instead.
+      if (!wheel) holdStart();
+      else if (!throttled) { lastWheel[ev.dir] = now; ACTIONS.toggle(); push(); }
+      return;
+    }
     let changed = false;
     for (const action of Object.keys(ACTIONS)) {
-      if (matches(b[action], ev)) { ACTIONS[action](); changed = true; }
+      if (!matches(b[action], ev)) continue;
+      if (wheel && !STEPPED.has(action)) {
+        if (throttled) continue;
+        lastWheel[ev.dir] = now;
+      }
+      ACTIONS[action]();
+      changed = true;
     }
     if (changed) push();
   }

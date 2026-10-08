@@ -128,7 +128,7 @@
 
   function defaultScope() {
     return {
-      rev: 2,
+      rev: 3,
       enabled: false,
       keepWarm: true,
       zoom: 2.5,
@@ -136,7 +136,7 @@
       setZoomValue: 4,
       wheelZoom: false, // the wheel also reaches the game (weapon switch), so this is opt-in
       animate: true,
-      animMs: 160,
+      animMs: 80,
       shape: 'circle',
       size: 280,
       width: 380,
@@ -178,7 +178,9 @@
     out.binds = Object.assign(defaultScope().binds, (sc && sc.binds) || {});
     // rev 2: scroll-wheel zoom changed from on to off by default; switch it off in older saves once.
     if (sc && (sc.rev || 1) < 2) out.wheelZoom = false;
-    out.rev = 2;
+    // rev 3: snappier default zoom animation (160 → 80 ms) for anyone still on the old default.
+    if (sc && (sc.rev || 1) < 3 && out.animMs === 160) out.animMs = 80;
+    out.rev = 3;
     return out;
   }
 

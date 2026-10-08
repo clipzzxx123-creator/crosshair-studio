@@ -52,6 +52,20 @@ function persist() {
   }, 250);
 }
 
+// ---------------- GPU / frame-rate switches (must be set before the app is ready) ----------------
+
+// Windows can wrongly treat the always-on-top overlay as hidden and slow its drawing down.
+if (process.platform === 'win32') app.commandLine.appendSwitch('disable-features', 'CalculateNativeWinOcclusion');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+// Scope "VSync" off: let the lens draw faster than the monitor refresh. Applies from the next launch.
+{
+  const saved = loadData();
+  if (saved && Array.isArray(saved.profiles) && saved.profiles.some((p) => p.scope && p.scope.enabled && p.scope.vsync === false)) {
+    app.commandLine.appendSwitch('disable-gpu-vsync');
+    app.commandLine.appendSwitch('disable-frame-rate-limit');
+  }
+}
+
 // ---------------- helpers ----------------
 
 const activeProfile = () => data && (data.profiles.find((p) => p.id === data.activeProfileId) || data.profiles[0]);
@@ -126,7 +140,7 @@ function pushOverlay(announce = false) {
     crosshair: activeCrosshair(),
     offsetX: p.offsetX || 0,
     offsetY: p.offsetY || 0,
-    display: d.bounds,
+    display: Object.assign({}, d.bounds, { hz: d.displayFrequency || 60 }),
     window: overlayWin.getBounds(),
     announce: announce === true && data.settings.switchToast !== false,
   });
@@ -172,7 +186,14 @@ function startInputHook() {
       if (ev.code === 'Escape') clearTimeout(escTimer);
       onBindUp(ev);
     });
-    uIOhook.on('wheel', (e) => scope.handleWheel(e));
+    uIOhook.on('wheel', (e) => {
+      // Vertical wheel only; rotation < 0 is scrolling up (away from you).
+      if (e.direction !== undefined && e.direction !== 3) return;
+      if (!e.rotation) return;
+      const ev = { kind: 'wheel', dir: e.rotation < 0 ? 'up' : 'down', mods: { ctrl: !!e.ctrlKey, alt: !!e.altKey, shift: !!e.shiftKey, meta: !!e.metaKey } };
+      onBindDown(ev);
+      scope.handleWheel(e);
+    });
     uIOhook.start();
     inputState = { available: true, error: null };
   } catch (e) {
@@ -204,15 +225,26 @@ function changed(announce = false) {
 
 // ---------------- binds (keys + mouse buttons, via the global hook) ----------------
 
+// One wheel flick sends many ticks; switching actions take at most one tick per WHEEL_GAP_MS
+// so a scroll doesn't fly through every crosshair. (Scope zoom binds stay unthrottled.)
+const WHEEL_GAP_MS = 150;
+const lastWheel = { up: 0, down: 0 };
+
 function onBindDown(ev) {
   if (!data) return;
+  scope.onBindDown(ev);
+  if (ev.kind === 'wheel') {
+    const now = Date.now();
+    if (now - lastWheel[ev.dir] < WHEEL_GAP_MS) return;
+    lastWheel[ev.dir] = now;
+  }
   const s = data.settings;
   for (const [action, bind] of Object.entries(s.binds || {})) {
     if (HOTKEY_ACTIONS[action] && matches(bind, ev)) HOTKEY_ACTIONS[action]();
   }
   for (const [id, cb] of Object.entries(s.crosshairBinds || {})) {
     if (!cb || !matches(cb.bind, ev)) continue;
-    if (cb.mode === 'hold') {
+    if (cb.mode === 'hold' && ev.kind !== 'wheel') { // a scroll can't be held, so it switches
       // Use this crosshair only while the bind is held; not saved.
       if (!data.crosshairs.find((c) => c.id === id)) continue;
       heldCrosshair = { id, bind: cb.bind };
@@ -221,7 +253,6 @@ function onBindDown(ev) {
       switchCrosshair(id);
     }
   }
-  scope.onBindDown(ev);
 }
 
 function onBindUp(ev) {

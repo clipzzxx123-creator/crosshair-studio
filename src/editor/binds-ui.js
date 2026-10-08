@@ -1,5 +1,6 @@
 // Bind recorder + labels shared by the Scope tab and the Settings view.
 // Binds use the global hook's key names, so they match what the main process sees.
+// Kinds: { kind: 'key', code, mods… }, { kind: 'mouse', button }, { kind: 'wheel', dir: 'up' | 'down', mods… }.
 (function () {
   const XH = (window.XH = window.XH || {});
 
@@ -18,6 +19,10 @@
   function prettyBind(b, isMac) {
     if (!b) return 'Not set';
     if (b.kind === 'mouse') return MOUSE_NAMES[b.button] || b.button;
+    if (b.kind === 'wheel') {
+      const mods = [b.ctrl && 'Ctrl', b.alt && (isMac ? '⌥' : 'Alt'), b.shift && 'Shift', b.meta && (isMac ? '⌘' : 'Win')].filter(Boolean);
+      return [...mods, b.dir === 'up' ? 'Scroll up' : 'Scroll down'].join(' + ');
+    }
     const names = {
       Meta: isMac ? '⌘' : 'Win', MetaRight: isMac ? 'Right ⌘' : 'Right Win', Ctrl: 'Ctrl', CtrlRight: 'Right Ctrl',
       Alt: isMac ? '⌥' : 'Alt', AltRight: isMac ? 'Right ⌥' : 'Right Alt', Shift: 'Shift', ShiftRight: 'Right Shift',
@@ -32,16 +37,17 @@
     return parts.join(' + ');
   }
 
-  // Click a bind button, then press a key / combo or a mouse button. Esc cancels, Backspace clears.
+  // Click a bind button, then press a key / combo, a mouse button, or scroll. Esc cancels, Backspace clears.
   function recordBind(btn, isMac, done) {
     btn.classList.add('recording');
-    btn.textContent = 'Press a key or mouse button…';
+    btn.textContent = 'Press a key, mouse button or scroll…';
     let pendingMod = null;
     const finish = (bind, cancelled) => {
       window.removeEventListener('keydown', onKey, true);
       window.removeEventListener('keyup', onKeyUp, true);
       window.removeEventListener('mousedown', onMouse, true);
       window.removeEventListener('contextmenu', onCtx, true);
+      window.removeEventListener('wheel', onWheel, { capture: true });
       btn.classList.remove('recording');
       done(bind, cancelled);
     };
@@ -67,8 +73,15 @@
       e.stopPropagation();
       finish({ kind: 'mouse', button });
     };
+    const onWheel = (e) => {
+      if (!e.deltaY) return; // ignore sideways scrolling
+      e.preventDefault();
+      e.stopPropagation();
+      finish({ kind: 'wheel', dir: e.deltaY < 0 ? 'up' : 'down', ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey, meta: e.metaKey });
+    };
     const onCtx = (e) => e.preventDefault();
     setTimeout(() => {
+      window.addEventListener('wheel', onWheel, { capture: true, passive: false });
       window.addEventListener('keydown', onKey, true);
       window.addEventListener('keyup', onKeyUp, true);
       window.addEventListener('mousedown', onMouse, true);
@@ -76,9 +89,11 @@
     }, 0);
   }
 
+  const sameMods = (a, b) => !!a.ctrl === !!b.ctrl && !!a.alt === !!b.alt && !!a.shift === !!b.shift && !!a.meta === !!b.meta;
   const sameBind = (a, b) => !!a && !!b && a.kind === b.kind &&
     (a.kind === 'mouse' ? a.button === b.button
-      : a.code === b.code && !!a.ctrl === !!b.ctrl && !!a.alt === !!b.alt && !!a.shift === !!b.shift && !!a.meta === !!b.meta);
+      : a.kind === 'wheel' ? a.dir === b.dir && sameMods(a, b)
+        : a.code === b.code && sameMods(a, b));
 
   XH.BindUI = { recordBind, prettyBind, sameBind, hookName };
 })();

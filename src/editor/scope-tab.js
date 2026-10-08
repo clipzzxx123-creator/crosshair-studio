@@ -138,15 +138,15 @@
           : h('p', { class: 'note' }, 'The lens magnifies whatever is under your cursor.')),
       section('Keybinds', [], sc, onChange,
         h('div', { class: 'bind-table' }, ...bindRows,
-          h('p', { class: 'note' }, 'Click a bind, then press a key, a key combo, or right / middle / side mouse button. Esc cancels, Backspace clears. Hold Esc for 3 seconds in game to hide everything.'))),
+          h('p', { class: 'note' }, 'Click a bind, then press a key, a key combo, right / middle / side mouse button, or scroll. Scroll up / down suits Zoom in / out. A scroll bound to Hold to zoom acts as a toggle. Esc cancels, Backspace clears. Hold Esc for 3 seconds in game to hide everything.'))),
       section('Graphics', [
         F.select('quality', 'Quality', [
           ['ultraPerformance', 'Ultra Performance'], ['performance', 'Performance'], ['balanced', 'Balanced'], ['quality', 'Quality'], ['ultra', 'Ultra'],
         ]),
-        F.check('vsync', 'VSync (turn off for lower latency, experimental)'),
+        F.check('vsync', 'VSync (turn off for lower latency, experimental; restart the app to apply)'),
         F.check('keepWarm', 'Keep capture running for instant zoom'),
       ], sc, onChange,
-        h('p', { class: 'note' }, 'Lower quality captures fewer frames at a lower resolution and is lighter on slower PCs. Ultra captures up to 120 fps at full resolution.'))
+        h('p', { class: 'note' }, 'Balanced and above capture at your monitor’s refresh rate (144 Hz monitor = 144 fps). Lower modes capture fewer frames at lower resolution and are lighter on slower PCs. Quality and Ultra also draw at full screen sharpness.'))
     );
   }
 

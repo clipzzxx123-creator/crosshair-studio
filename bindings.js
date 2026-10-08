@@ -1,5 +1,6 @@
 // Shared keybind helpers for the main process.
-// A bind is { kind: 'key', code, ctrl?, alt?, shift?, meta? } or { kind: 'mouse', button }.
+// A bind is { kind: 'key', code, ctrl?, alt?, shift?, meta? }, { kind: 'mouse', button }
+// or { kind: 'wheel', dir: 'up' | 'down', ctrl?, alt?, shift?, meta? }.
 // Key codes use uiohook key names ('A', 'F6', 'Shift', 'ArrowUp', ...).
 
 const MOD_CODES = { Ctrl: 'ctrl', CtrlRight: 'ctrl', Alt: 'alt', AltRight: 'alt', Shift: 'shift', ShiftRight: 'shift', Meta: 'meta', MetaRight: 'meta' };
@@ -35,15 +36,18 @@ function createKeyState(UiohookKey) {
 function matches(bind, ev) {
   if (!bind || !ev || bind.kind !== ev.kind) return false;
   if (bind.kind === 'mouse') return bind.button === ev.button;
+  const m = ev.mods || {};
+  if (bind.kind === 'wheel') {
+    return bind.dir === ev.dir && !!bind.ctrl === !!m.ctrl && !!bind.alt === !!m.alt && !!bind.shift === !!m.shift && !!bind.meta === !!m.meta;
+  }
   if (bind.code !== ev.code) return false;
   if (MOD_CODES[bind.code]) return true;
-  const m = ev.mods || {};
   return !!bind.ctrl === !!m.ctrl && !!bind.alt === !!m.alt && !!bind.shift === !!m.shift && !!bind.meta === !!m.meta;
 }
 
-/** Does a release event end a held bind? Only the main key / button counts. */
+/** Does a release event end a held bind? Only the main key / button counts; scrolls never "release". */
 function releases(bind, ev) {
-  if (!bind || !ev || bind.kind !== ev.kind) return false;
+  if (!bind || !ev || bind.kind !== ev.kind || bind.kind === 'wheel') return false;
   return bind.kind === 'mouse' ? bind.button === ev.button : bind.code === ev.code;
 }
 
