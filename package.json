@@ -1,7 +1,7 @@
 {
   "name": "crosshair-studio",
   "productName": "Crosshair Studio",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Custom crosshair overlay with a layered designer, animations, presets and share codes.",
   "main": "main.js",
   "scripts": {

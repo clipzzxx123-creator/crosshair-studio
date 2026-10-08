@@ -27,7 +27,7 @@ This builds the installer and creates a GitHub release with it (needs the `gh` C
 npm run dist:win
 ```
 
-This writes `dist/Crosshair Studio Setup 1.0.6.exe` (installer) and `dist/Crosshair Studio-1.0.6-portable.exe` (no install) for 64-bit Windows. It can be built from a Mac. The builds are unsigned, so Windows SmartScreen shows "Windows protected your PC": click **More info → Run anyway**. `npm run dist:mac` builds a `.dmg`.
+This writes `dist/Crosshair Studio Setup 1.0.7.exe` (installer) and `dist/Crosshair Studio-1.0.7-portable.exe` (no install) for 64-bit Windows. It can be built from a Mac. The builds are unsigned, so Windows SmartScreen shows "Windows protected your PC": click **More info → Run anyway**. `npm run dist:mac` builds a `.dmg`.
 
 **Windows** needs no permissions: the scope captures the screen and the mouse/keyboard hook works without any prompt.
 

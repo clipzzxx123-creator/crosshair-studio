@@ -505,8 +505,17 @@ function setupUpdater() {
 function installUpdate() {
   if (!autoUpdater || updateState.status !== 'ready') return;
   quitting = true;
+  // Release everything that could keep app files busy before the installer replaces them:
+  // the global input hook, hotkeys, windows and the tray icon.
+  try { if (uIOhook && inputState.available) uIOhook.stop(); } catch {}
+  inputState.available = false;
+  globalShortcut.unregisterAll();
+  for (const w of BrowserWindow.getAllWindows()) w.destroy();
+  overlayWin = null;
+  editorWin = null;
+  if (tray) { tray.destroy(); tray = null; }
   // Silent install, then relaunch the app.
-  autoUpdater.quitAndInstall(true, true);
+  setTimeout(() => autoUpdater.quitAndInstall(true, true), 200);
 }
 
 // ---------------- launch at startup ----------------
