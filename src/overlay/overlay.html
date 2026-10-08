@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'">
+<title>Crosshair Overlay</title>
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; background: transparent; overflow: hidden; }
+  #scope { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
+  #xh { position: absolute; width: 0; height: 0; pointer-events: none; }
+  #xh svg { position: absolute; left: -400px; top: -400px; }
+  #toast { position: absolute; transform: translate(-50%, 0); padding: 6px 14px; border-radius: 8px; background: rgba(10,12,16,.78);
+    color: #fff; font: 600 14px -apple-system, "Segoe UI", sans-serif; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .2s; }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<canvas id="scope"></canvas>
+<div id="xh"></div>
+<div id="toast"></div>
+<script src="../shared/render.js"></script>
+<script src="../shared/animator.js"></script>
+<script src="scope.js"></script>
+<script src="overlay.js"></script>
+</body>
+</html>

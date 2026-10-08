@@ -1,0 +1,72 @@
+{
+  "name": "crosshair-studio",
+  "productName": "Crosshair Studio",
+  "version": "1.0.5",
+  "description": "Custom crosshair overlay with a layered designer, animations, presets and share codes.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis portable --x64",
+    "dist:mac": "electron-builder --mac dmg",
+    "release:win": "electron-builder --win nsis portable --x64 --publish always"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "uiohook-napi": "^1.5.5"
+  },
+  "author": "Crosshair Studio",
+  "build": {
+    "appId": "com.crosshairstudio.app",
+    "productName": "Crosshair Studio",
+    "files": [
+      "*.js",
+      "src/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Crosshair Studio",
+      "include": "build/installer.nsh"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.exe"
+    },
+    "mac": {
+      "category": "public.app-category.utilities",
+      "target": "dmg"
+    },
+    "npmRebuild": false,
+    "asarUnpack": [
+      "node_modules/uiohook-napi/**"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "clipzzxx123-creator",
+        "repo": "crosshair-studio",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/clipzzxx123-creator/crosshair-studio.git"
+  }
+}

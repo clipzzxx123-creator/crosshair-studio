@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:">
+<title>Crosshair Studio</title>
+<link rel="stylesheet" href="editor.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-mark"></span>Crosshair Studio</div>
+  <div class="seg view-seg" id="viewSeg">
+    <button class="active" data-view="editor">Editor</button>
+    <button data-view="settings">Settings</button>
+  </div>
+  <div class="topbar-group">
+    <label class="field-inline">Game profile
+      <select id="profileSelect"></select>
+    </label>
+    <button class="btn ghost small" id="manageProfilesBtn" title="Add, rename or delete game profiles">Manage</button>
+  </div>
+  <div class="topbar-group">
+    <label class="field-inline">Monitor
+      <select id="displaySelect"></select>
+    </label>
+  </div>
+  <div class="topbar-spacer"></div>
+  <label class="switch" title="Show the crosshair overlay on screen">
+    <input type="checkbox" id="overlayToggle">
+    <span class="switch-track"></span>
+    <span class="switch-label">Overlay</span>
+  </label>
+</header>
+
+<div class="app">
+  <!-- LEFT: crosshair collection + library -->
+  <aside class="panel left">
+    <div class="tabs" data-tabs="left">
+      <button class="tab active" data-tab="mine">My Crosshairs</button>
+      <button class="tab" data-tab="library">Library</button>
+    </div>
+    <section class="tab-body" data-body="mine">
+      <div class="row gap">
+        <button class="btn primary grow" id="newBtn">+ New</button>
+        <button class="btn grow" id="newImgBtn" title="Use any image as a crosshair">From image</button>
+      </div>
+      <button class="btn" id="importBtn">Import share code</button>
+      <input class="search" id="mineSearch" placeholder="Search your crosshairs">
+      <ul class="xh-list" id="mineList"></ul>
+    </section>
+    <section class="tab-body hidden" data-body="library">
+      <input class="search" id="libSearch" placeholder="Search presets">
+      <div class="chips" id="libCats"></div>
+      <div class="lib-grid" id="libGrid"></div>
+    </section>
+  </aside>
+
+  <!-- CENTER: preview -->
+  <main class="center">
+    <div class="center-toolbar">
+      <input class="name-input" id="nameInput" spellcheck="false" aria-label="Crosshair name">
+      <div class="row gap">
+        <button class="btn small" id="undoBtn" title="Undo (Ctrl/Cmd+Z)">Undo</button>
+        <button class="btn small" id="redoBtn" title="Redo (Ctrl/Cmd+Shift+Z)">Redo</button>
+        <button class="btn small" id="shareBtn">Share code</button>
+        <button class="btn small" id="exportBtn">Export</button>
+      </div>
+    </div>
+    <div class="stage" id="stage">
+      <div class="stage-bg" id="stageBg"></div>
+      <div class="stage-lens" id="stageLens" hidden><div class="stage-lens-inner"></div><span class="stage-lens-label"></span></div>
+      <div class="stage-xh" id="stageXh"></div>
+      <div class="stage-actual" title="Actual size">
+        <div class="stage-actual-bg" id="actualBg"></div>
+        <div id="actualXh"></div>
+        <span>1:1</span>
+      </div>
+      <div class="stage-hint">Left-click to fire · Right-click to aim · Hold to test hold animations</div>
+    </div>
+    <div class="stage-controls">
+      <div class="row gap" id="bgSwatches"></div>
+      <div class="row gap">
+        <span class="muted">Zoom</span>
+        <div class="seg" id="zoomSeg"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- RIGHT: inspector -->
+  <aside class="panel right">
+    <div class="tabs" data-tabs="right">
+      <button class="tab active" data-tab="layers">Layers</button>
+      <button class="tab" data-tab="anim">Animations</button>
+      <button class="tab" data-tab="behavior">Behavior</button>
+      <button class="tab" data-tab="scope">Scope</button>
+    </div>
+    <section class="tab-body" data-body="layers">
+      <div class="add-layer" id="addLayer"></div>
+      <ul class="layer-list" id="layerList"></ul>
+      <div id="inspector"></div>
+    </section>
+    <section class="tab-body hidden" data-body="anim">
+      <div class="add-layer" id="addAnim"></div>
+      <div id="animList"></div>
+    </section>
+    <section class="tab-body hidden" data-body="behavior">
+      <div id="behavior"></div>
+    </section>
+    <section class="tab-body hidden" data-body="scope">
+      <div id="scopePanel" class="scope-panel"></div>
+    </section>
+  </aside>
+</div>
+
+<div class="settings-view hidden" id="settingsView"></div>
+
+<div class="modal-root" id="modalRoot"></div>
+<div class="toast" id="toast"></div>
+
+<script src="../shared/render.js"></script>
+<script src="../shared/animator.js"></script>
+<script src="../shared/model.js"></script>
+<script src="../shared/presets.js"></script>
+<script src="binds-ui.js"></script>
+<script src="scope-tab.js"></script>
+<script src="settings-view.js"></script>
+<script src="editor.js"></script>
+</body>
+</html>
