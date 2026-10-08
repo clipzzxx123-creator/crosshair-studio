@@ -16,8 +16,10 @@ The installed Windows app updates itself from this repository's GitHub releases:
 To publish a new version: bump `version` in `package.json`, then run
 
 ```bash
-GH_TOKEN=$(gh auth token) npm run release:win
+npm run release:win
 ```
+
+This builds the installer and creates a GitHub release with it (needs the `gh` CLI signed in).
 
 ### Build installers
 

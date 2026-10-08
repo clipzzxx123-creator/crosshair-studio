@@ -8,7 +8,7 @@
     "start": "electron .",
     "dist:win": "electron-builder --win nsis portable --x64",
     "dist:mac": "electron-builder --mac dmg",
-    "release:win": "electron-builder --win nsis portable --x64 --publish always"
+    "release:win": "sh scripts/release.sh"
   },
   "license": "MIT",
   "devDependencies": {
